@@ -565,3 +565,24 @@ Implemented now:
 15. Final integration
 
 The project is now at the final integration stage requested by the project specification. fileciteturn0file0L62-L78
+
+
+## MODS
+
+### Creation
+
+ALL major modding should be done thu json
+
+### Mod Instructions
+
+all modding specific instruction will be under the 0xDD (221) instruction
+
+all 0xDD (221) instruction will work the same as 0xCB with the next byte being the real instruction code
+
+if Extra_Instructions is off in the mod.json file, 0xDD Will Stop the program
+
+### Multiplayer
+
+mods are allowed to set up to 1024 syned bytes
+
+at $E000 up to $F000 in echo ram

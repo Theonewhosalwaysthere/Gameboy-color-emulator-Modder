@@ -18,6 +18,14 @@ extern "C" {
 #define GB_SDL3_WINDOW_WIDTH  (GB_PPU_WIDTH * GB_SDL3_WINDOW_SCALE)
 #define GB_SDL3_WINDOW_HEIGHT (GB_PPU_HEIGHT * GB_SDL3_WINDOW_SCALE)
 
+typedef enum GB_SDL3MenuScreen {
+    GB_SDL3_MENU_NONE = 0,
+    GB_SDL3_MENU_MAIN,
+    GB_SDL3_MENU_KEYBINDS,
+    GB_SDL3_MENU_SETTINGS,
+    GB_SDL3_MENU_BINDING
+} GB_SDL3MenuScreen;
+
 typedef struct GB_SDL3Platform {
     bool initialized;
     bool sdl_initialized;
@@ -30,6 +38,15 @@ typedef struct GB_SDL3Platform {
     GB_AudioSDL3 audio;
     bool input_initialized;
     bool audio_initialized;
+
+    /* Host-side pause/settings UI. The emulator core itself is not advanced
+     * while paused. */
+    bool paused;
+    bool audio_muted;
+    int window_scale;
+    GB_SDL3MenuScreen menu_screen;
+    int menu_selection;
+    GB_InputButton binding_button;
 } GB_SDL3Platform;
 
 GB_Result gb_sdl3_init(GB_SDL3Platform *platform,
