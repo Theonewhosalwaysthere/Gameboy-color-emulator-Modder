@@ -1,0 +1,291 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build GBC emulator",
+            "type": "shell",
+            "command": "make",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build core library",
+            "type": "shell",
+            "command": "make core",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run all tests",
+            "type": "shell",
+            "command": "make test",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run CPU tests",
+            "type": "shell",
+            "command": "make test-cpu",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run memory/bus tests",
+            "type": "shell",
+            "command": "make test-memory",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run cartridge tests",
+            "type": "shell",
+            "command": "make test-cartridge",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run MBC tests",
+            "type": "shell",
+            "command": "make test-mbc",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run timer tests",
+            "type": "shell",
+            "command": "make test-timer",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run interrupt tests",
+            "type": "shell",
+            "command": "make test-interrupt",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run PPU tests",
+            "type": "shell",
+            "command": "make test-ppu",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run input tests",
+            "type": "shell",
+            "command": "make test-input",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run DMA tests",
+            "type": "shell",
+            "command": "make test-dma",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run CGB hardware tests",
+            "type": "shell",
+            "command": "make test-cgb",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run audio tests",
+            "type": "shell",
+            "command": "make test-audio",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run save RAM tests",
+            "type": "shell",
+            "command": "make test-save",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run debug/diagnostic tests",
+            "type": "shell",
+            "command": "make test-debug",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run emulator synchronization tests",
+            "type": "shell",
+            "command": "make test-emulator",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build SDL3 emulator",
+            "type": "shell",
+            "command": "make emulator",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run ROM with Make",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "run",
+                "ROM=${input:romPath}"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build SDL3 input adapter",
+            "type": "shell",
+            "command": "make sdl3-input",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build SDL3 audio adapter",
+            "type": "shell",
+            "command": "make sdl3-audio",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Sanitize all tests",
+            "type": "shell",
+            "command": "make sanitize",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Clean build",
+            "type": "shell",
+            "command": "make clean",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "romPath",
+            "type": "promptString",
+            "description": "Path to a .gb or .gbc ROM",
+            "default": "game.gbc"
+        }
+    ]
+}

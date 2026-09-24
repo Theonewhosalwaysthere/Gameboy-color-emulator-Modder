@@ -1,0 +1,28 @@
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "GBC Emulator",
+            "compilerPath": "gcc",
+            "cStandard": "c11",
+            "includePath": [
+                "${workspaceFolder}/src/cpu",
+                "${workspaceFolder}/src/memory",
+                "${workspaceFolder}/src/cartridge",
+                "${workspaceFolder}/src/timer",
+                "${workspaceFolder}/src/interrupt",
+                "${workspaceFolder}/src/ppu",
+                "${workspaceFolder}/src/input",
+                "${workspaceFolder}/src/dma",
+                "${workspaceFolder}/src/cgb",
+                "${workspaceFolder}/src/audio",
+                "${workspaceFolder}/src/emulator",
+                "${workspaceFolder}/src/platform",
+                "${workspaceFolder}/src/save",
+                "${workspaceFolder}/src/debug",
+                "D:/SDL3-3.2.14/x86_64-w64-mingw32/include"
+            ],
+            "defines": []
+        }
+    ]
+}

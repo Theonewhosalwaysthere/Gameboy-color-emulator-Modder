@@ -1,0 +1,21 @@
+{
+    "C_Cpp.default.cStandard": "c11",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/src/cpu",
+        "${workspaceFolder}/src/memory",
+        "${workspaceFolder}/src/cartridge",
+        "${workspaceFolder}/src/timer",
+        "${workspaceFolder}/src/interrupt",
+        "${workspaceFolder}/src/ppu",
+        "${workspaceFolder}/src/input",
+        "${workspaceFolder}/src/dma",
+        "${workspaceFolder}/src/cgb",
+        "${workspaceFolder}/src/audio",
+        "${workspaceFolder}/src/emulator",
+        "${workspaceFolder}/src/platform",
+        "${env:SDL3_INCLUDE_DIR}"
+    ],
+    "files.associations": {
+        "*.h": "c"
+    }
+}
