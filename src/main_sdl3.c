@@ -29,7 +29,9 @@ static void print_error(const char *context, const GB_Error *error)
 static void print_usage(const char *program)
 {
     fprintf(stderr,
-            "Usage: %s [--dmg|--cgb] [--debug|--trace] [--breakpoint $ADDR] [--no-save] <rom.gb|rom.gbc>\n"
+            "Usage: %s [--dmg|--cgb] [--debug|--trace] [--breakpoint $ADDR] [--no-save] [rom.gb|rom.gbc]\n"
+            "\n"
+            "The ROM argument is optional. Without one, the SDL3 window opens and you can drag a .gb or .gbc ROM onto it.\n"
             "\n"
             "Diagnostics:\n"
             "  --debug        Enable debug logging\n"
@@ -109,11 +111,6 @@ int main(int argc, char **argv)
         }
     }
 
-    if (rom_path == NULL) {
-        print_usage(argv[0]);
-        return 2;
-    }
-
     GB_Emulator emulator;
     memset(&emulator, 0, sizeof(emulator));
 
@@ -138,11 +135,13 @@ int main(int argc, char **argv)
         }
     }
 
-    result = gb_emulator_load_rom(&emulator, rom_path, &error);
-    if (result != GB_RESULT_OK) {
-        print_error("ROM loading failed", &error);
-        (void)gb_emulator_destroy(&emulator, NULL);
-        return 1;
+    if (rom_path != NULL) {
+        result = gb_emulator_load_rom(&emulator, rom_path, &error);
+        if (result != GB_RESULT_OK) {
+            print_error("ROM loading failed", &error);
+            (void)gb_emulator_destroy(&emulator, NULL);
+            return 1;
+        }
     }
 
     GB_SDL3Platform platform;
@@ -154,14 +153,20 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    char title[128];
-    (void)snprintf(title, sizeof(title),
-                   "GBC Emulator - %.16s (%s)",
-                   (const char *)emulator.cartridge.title,
-                   gb_cartridge_cgb_support_name(emulator.cartridge.cgb_support));
-    if (!SDL_SetWindowTitle(platform.window, title)) {
+    if (emulator.cartridge.loaded) {
+        char title[128];
+        (void)snprintf(title, sizeof(title),
+                       "GBC Emulator - %.16s (%s)",
+                       (const char *)emulator.cartridge.title,
+                       gb_cartridge_cgb_support_name(emulator.cartridge.cgb_support));
+        if (!SDL_SetWindowTitle(platform.window, title)) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "Could not set ROM window title: %s", SDL_GetError());
+        }
+    } else if (!SDL_SetWindowTitle(platform.window,
+                                   "GBC Emulator - Drag a .gb/.gbc ROM onto this window")) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Could not set ROM window title: %s", SDL_GetError());
+                    "Could not set SDL3 window title: %s", SDL_GetError());
     }
 
     result = gb_sdl3_run(&platform, &emulator, &error);
