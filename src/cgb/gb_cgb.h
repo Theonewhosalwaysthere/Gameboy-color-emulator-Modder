@@ -64,8 +64,6 @@ typedef struct GB_CGB {
     uint8_t hdma_blocks_remaining;
 
     uint32_t cpu_stall_t_cycles;
-    uint32_t speed_switch_pause_t_cycles;
-    bool hblank_hdma_block_done;
     GB_PPU_Mode previous_ppu_mode;
     bool previous_ppu_mode_valid;
 
@@ -107,7 +105,6 @@ bool gb_cgb_hdma_active(const GB_CGB *cgb);
 uint8_t gb_cgb_hdma_blocks_remaining(const GB_CGB *cgb);
 uint32_t gb_cgb_cpu_stall_t_cycles(const GB_CGB *cgb);
 bool gb_cgb_cpu_is_stalled(const GB_CGB *cgb);
-bool gb_cgb_speed_switch_paused(const GB_CGB *cgb);
 
 GB_Result gb_cgb_set_ir_input(GB_CGB *cgb, bool active, GB_Error *error);
 bool gb_cgb_ir_led_on(const GB_CGB *cgb);

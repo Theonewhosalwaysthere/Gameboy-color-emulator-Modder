@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "GBC Emulator",
-            "compilerPath": "gcc",
+            "compilerPath": "cc",
             "cStandard": "c11",
             "includePath": [
                 "${workspaceFolder}/src/cpu",
@@ -20,7 +20,7 @@
                 "${workspaceFolder}/src/platform",
                 "${workspaceFolder}/src/save",
                 "${workspaceFolder}/src/debug",
-                "D:/SDL3-3.2.14/x86_64-w64-mingw32/include"
+                "${env:SDL3_INCLUDE_DIR}"
             ],
             "defines": []
         }

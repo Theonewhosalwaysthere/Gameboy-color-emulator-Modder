@@ -78,7 +78,6 @@ typedef struct GB_AudioWave {
     uint16_t frequency;
     uint16_t timer;
     uint8_t position;
-    uint8_t sample_buffer;
 } GB_AudioWave;
 
 typedef struct GB_AudioNoise {
@@ -141,7 +140,6 @@ typedef struct GB_Audio {
     uint8_t frame_step;
     uint32_t fallback_frame_cycles;
 
-    uint32_t sample_rate_hz;
     uint64_t sample_accumulator;
     float ring[GB_AUDIO_RING_FRAMES][GB_AUDIO_CHANNEL_COUNT];
     uint32_t ring_read;
@@ -153,7 +151,6 @@ typedef struct GB_Audio {
     float hp_left_output;
     float hp_right_input;
     float hp_right_output;
-    float hpf_charge_factor;
 
     void *timer;
     GB_Result (*timer_attach)(void *timer, void *audio, GB_Error *error);
@@ -164,7 +161,6 @@ GB_Result gb_audio_reset(GB_Audio *audio, GB_Error *error);
 GB_Result gb_audio_destroy(GB_Audio *audio, GB_Error *error);
 
 GB_Result gb_audio_tick(GB_Audio *audio, uint32_t t_cycles, GB_Error *error);
-GB_Result gb_audio_set_sample_rate(GB_Audio *audio, uint32_t sample_rate_hz, GB_Error *error);
 GB_Result gb_audio_clock_frame_sequencer(GB_Audio *audio, GB_Error *error);
 
 GB_Result gb_audio_power(GB_Audio *audio, bool enabled, GB_Error *error);

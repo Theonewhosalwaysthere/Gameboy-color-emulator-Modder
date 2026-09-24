@@ -72,45 +72,6 @@ GB_Result gb_audio_sdl3_init(GB_AudioSDL3 *output, GB_Audio *audio,
         return GB_RESULT_BAD_STATE;
     }
 
-    SDL_AudioSpec device_spec;
-    SDL_zero(device_spec);
-    if (!SDL_GetAudioDeviceFormat(output->device, &device_spec, NULL) ||
-        device_spec.freq <= 0) {
-        SDL_DestroyAudioStream(output->stream);
-        output->stream = NULL;
-        if (output->audio_subsystem_owned) {
-            SDL_QuitSubSystem(SDL_INIT_AUDIO);
-            output->audio_subsystem_owned = false;
-        }
-        sdl_audio_error(error, GB_RESULT_BAD_STATE,
-                        "SDL3 audio device format query failed");
-        return GB_RESULT_BAD_STATE;
-    }
-
-    SDL_AudioSpec source_spec = output->input_spec;
-    source_spec.freq = device_spec.freq;
-    if (!SDL_SetAudioStreamFormat(output->stream, &source_spec, NULL)) {
-        SDL_DestroyAudioStream(output->stream);
-        output->stream = NULL;
-        if (output->audio_subsystem_owned) {
-            SDL_QuitSubSystem(SDL_INIT_AUDIO);
-            output->audio_subsystem_owned = false;
-        }
-        sdl_audio_error(error, GB_RESULT_UNSUPPORTED,
-                        "SDL3 audio source format could not be configured");
-        return GB_RESULT_UNSUPPORTED;
-    }
-
-    if (gb_audio_set_sample_rate(audio, (uint32_t)device_spec.freq, error) != GB_RESULT_OK) {
-        SDL_DestroyAudioStream(output->stream);
-        output->stream = NULL;
-        if (output->audio_subsystem_owned) {
-            SDL_QuitSubSystem(SDL_INIT_AUDIO);
-            output->audio_subsystem_owned = false;
-        }
-        return error != NULL ? error->code : GB_RESULT_INVALID_ARGUMENT;
-    }
-
     if (!SDL_ResumeAudioStreamDevice(output->stream)) {
         SDL_DestroyAudioStream(output->stream);
         output->stream = NULL;

@@ -291,7 +291,7 @@ static uint16_t calculate_mode3_dots(const GB_PPU *ppu)
 {
     uint16_t dots = (uint16_t)(GB_PPU_MODE3_MIN_DOTS + (ppu->scx & 0x07u));
 
-    if (window_active(ppu) && window_screen_start(ppu) > 0) {
+    if (ppu->window_used_this_line && window_screen_start(ppu) > 0) {
         dots = (uint16_t)(dots + 6u);
     }
 
@@ -338,62 +338,94 @@ static uint16_t calculate_mode3_dots(const GB_PPU *ppu)
     return dots;
 }
 
-static void render_scanline_pixel(GB_PPU *ppu, uint8_t screen_x)
+static void render_sprites(GB_PPU *ppu)
 {
-    uint8_t color_index = 0u;
-    bool priority = false;
-    uint16_t rgb = 0u;
-    render_background_pixel(ppu, screen_x, &color_index, &priority, &rgb);
-    ppu->bg_color_index[screen_x] = color_index;
-    ppu->bg_priority[screen_x] = priority;
-    ppu->framebuffer[(size_t)ppu->ly * GB_PPU_WIDTH + screen_x] = rgb;
-
-    if ((ppu->lcdc & LCDC_OBJ_ENABLE) == 0u) return;
+    if ((ppu->lcdc & LCDC_OBJ_ENABLE) == 0u) {
+        return;
+    }
 
     uint8_t height = (ppu->lcdc & LCDC_OBJ_SIZE) != 0u ? 16u : 8u;
-    for (uint8_t i = 0u; i < ppu->line_sprite_count; ++i) {
-        const GB_PPU_Sprite *sprite = &ppu->line_sprites[i];
-        int32_t sprite_screen_x = (int32_t)sprite->x - 8;
-        int32_t pixel_x = (int32_t)screen_x - sprite_screen_x;
-        if (pixel_x < 0 || pixel_x >= 8) continue;
 
-        int32_t pixel_y = (int32_t)ppu->ly + 16 - (int32_t)sprite->y;
-        if (pixel_y < 0 || pixel_y >= (int32_t)height) continue;
-
-        if ((sprite->attributes & 0x40u) != 0u) pixel_y = (int32_t)height - 1 - pixel_y;
-        if ((sprite->attributes & 0x20u) != 0u) pixel_x = 7 - pixel_x;
-
-        uint8_t tile = sprite->tile;
-        if (height == 16u) {
-            tile &= 0xFEu;
-            if (pixel_y >= 8) ++tile;
-        }
-
-        uint8_t row = (uint8_t)(pixel_y & 0x07);
-        uint8_t bank = ppu_cgb_mode(ppu) && ((sprite->attributes & 0x08u) != 0u) ? 1u : 0u;
-        uint16_t data_address = (uint16_t)((uint16_t)tile * 16u + (uint16_t)row * 2u);
-        uint8_t color = read_tile_pixel(ppu, data_address, bank, (uint8_t)pixel_x);
-        if (color == 0u) continue;
-
-        bool bg_nonzero = ppu->bg_color_index[screen_x] != 0u;
-        bool bg_wins = false;
-        if (bg_nonzero) {
-            if (ppu_cgb_mode(ppu)) {
-                if ((ppu->lcdc & LCDC_BG_ENABLE) != 0u) {
-                    bg_wins = ppu->bg_priority[screen_x] || ((sprite->attributes & 0x80u) != 0u);
-                }
-            } else {
-                bg_wins = (sprite->attributes & 0x80u) != 0u;
+    for (uint8_t screen_x = 0u; screen_x < GB_PPU_WIDTH; ++screen_x) {
+        for (uint8_t i = 0u; i < ppu->line_sprite_count; ++i) {
+            const GB_PPU_Sprite *sprite = &ppu->line_sprites[i];
+            int32_t sprite_screen_x = (int32_t)sprite->x - 8;
+            int32_t pixel_x = (int32_t)screen_x - sprite_screen_x;
+            if (pixel_x < 0 || pixel_x >= 8) {
+                continue;
             }
-        }
-        if (bg_wins) continue;
 
-        uint8_t palette = ppu_cgb_mode(ppu)
-            ? (uint8_t)(sprite->attributes & 0x07u)
-            : (uint8_t)((sprite->attributes >> 4u) & 0x01u);
-        ppu->framebuffer[(size_t)ppu->ly * GB_PPU_WIDTH + screen_x] =
-            map_obj_color(ppu, color, palette);
-        break;
+            int32_t pixel_y = (int32_t)ppu->ly + 16 - (int32_t)sprite->y;
+            if (pixel_y < 0 || pixel_y >= (int32_t)height) {
+                continue;
+            }
+
+            if ((sprite->attributes & 0x40u) != 0u) {
+                pixel_y = (int32_t)height - 1 - pixel_y;
+            }
+            if ((sprite->attributes & 0x20u) != 0u) {
+                pixel_x = 7 - pixel_x;
+            }
+
+            uint8_t tile = sprite->tile;
+            if (height == 16u) {
+                tile &= 0xFEu;
+                if (pixel_y >= 8) {
+                    ++tile;
+                }
+            }
+
+            uint8_t row = (uint8_t)(pixel_y & 0x07);
+            uint8_t bank = ppu_cgb_mode(ppu) && ((sprite->attributes & 0x08u) != 0u) ? 1u : 0u;
+            uint16_t data_address = (uint16_t)((uint16_t)tile * 16u + (uint16_t)row * 2u);
+            uint8_t color = read_tile_pixel(ppu, data_address, bank, (uint8_t)pixel_x);
+            if (color == 0u) {
+                continue;
+            }
+
+            bool bg_nonzero = ppu->bg_color_index[screen_x] != 0u;
+            bool bg_wins = false;
+            if (bg_nonzero) {
+                if (ppu_cgb_mode(ppu)) {
+                    if ((ppu->lcdc & LCDC_BG_ENABLE) != 0u) {
+                        bg_wins = ppu->bg_priority[screen_x] ||
+                                  ((sprite->attributes & 0x80u) != 0u);
+                    }
+                } else {
+                    bg_wins = (sprite->attributes & 0x80u) != 0u;
+                }
+            }
+            if (bg_wins) {
+                continue;
+            }
+
+            uint8_t palette = ppu_cgb_mode(ppu)
+                ? (uint8_t)(sprite->attributes & 0x07u)
+                : (uint8_t)((sprite->attributes >> 4u) & 0x01u);
+            ppu->framebuffer[(size_t)ppu->ly * GB_PPU_WIDTH + screen_x] =
+                map_obj_color(ppu, color, palette);
+            break;
+        }
+    }
+}
+
+static void render_scanline(GB_PPU *ppu)
+{
+    ppu->window_used_this_line = false;
+
+    for (uint8_t x = 0u; x < GB_PPU_WIDTH; ++x) {
+        uint8_t color_index = 0u;
+        bool priority = false;
+        uint16_t rgb = 0u;
+        render_background_pixel(ppu, x, &color_index, &priority, &rgb);
+        ppu->bg_color_index[x] = color_index;
+        ppu->bg_priority[x] = priority;
+        ppu->framebuffer[(size_t)ppu->ly * GB_PPU_WIDTH + x] = rgb;
+    }
+
+    render_sprites(ppu);
+    if (ppu->window_used_this_line) {
+        ppu->window_line = (uint8_t)(ppu->window_line + 1u);
     }
 }
 
@@ -749,26 +781,15 @@ GB_Result gb_ppu_tick(GB_PPU *ppu, uint32_t t_cycles, GB_Error *error)
                 ppu->dot = 0u;
                 ppu->window_used_this_line = false;
                 evaluate_sprites(ppu);
+                render_scanline(ppu);
                 ppu->mode3_dots = calculate_mode3_dots(ppu);
-                /* Make the first pixel visible at the Mode 2 -> Mode 3
-                 * boundary. The remaining pixels are produced one dot at a
-                 * time during Mode 3. This preserves the public tick
-                 * behavior used by existing tests while keeping rendering
-                 * progressively synchronized with Mode 3. */
-                render_scanline_pixel(ppu, 0u);
                 result = set_mode(ppu, GB_PPU_MODE_XFER, error);
                 if (result != GB_RESULT_OK) return result;
             }
             break;
 
         case GB_PPU_MODE_XFER:
-            if (ppu->dot > 0u && ppu->dot < GB_PPU_WIDTH) {
-                render_scanline_pixel(ppu, (uint8_t)ppu->dot);
-            }
             if (ppu->dot >= ppu->mode3_dots) {
-                if (ppu->window_used_this_line) {
-                    ppu->window_line = (uint8_t)(ppu->window_line + 1u);
-                }
                 ppu->dot = 0u;
                 result = set_mode(ppu, GB_PPU_MODE_HBLANK, error);
                 if (result != GB_RESULT_OK) return result;

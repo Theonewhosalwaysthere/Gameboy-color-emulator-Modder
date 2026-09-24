@@ -71,7 +71,10 @@ static void update_hdma_registers(GB_CGB *cgb)
 
 static uint8_t hdma_read_status(const GB_CGB *cgb)
 {
-    return cgb->hdma5_status;
+    if (!cgb->hdma_active) {
+        return 0xFFu;
+    }
+    return (uint8_t)((cgb->hdma_blocks_remaining - 1u) & 0x7Fu);
 }
 
 static void finish_hdma(GB_CGB *cgb)
@@ -163,7 +166,8 @@ static GB_Result start_hdma(GB_CGB *cgb, bool hblank, uint8_t length_mode,
     cgb->hdma_blocks_remaining = block_count;
     cgb->hdma_active = true;
     cgb->hdma_hblank_mode = hblank;
-    cgb->hdma5_status = (uint8_t)(length_mode & 0x7Fu);
+    cgb->hdma5_status = hblank ? (uint8_t)(0x80u | (length_mode & 0x7Fu))
+                               : (length_mode & 0x7Fu);
 
     if (!hblank) {
         while (cgb->hdma_active) {
@@ -186,20 +190,15 @@ static GB_Result cgb_tick_hblank(GB_CGB *cgb, GB_Error *error)
     GB_PPU_Mode mode = gb_ppu_get_mode(cgb->ppu);
     uint8_t ly = gb_ppu_get_ly(cgb->ppu);
 
-    if (mode != GB_PPU_MODE_HBLANK || ly >= GB_PPU_VISIBLE_SCANLINES) {
-        cgb->hblank_hdma_block_done = false;
+    if (cgb->previous_ppu_mode_valid &&
+        cgb->previous_ppu_mode == GB_PPU_MODE_HBLANK &&
+        mode == GB_PPU_MODE_HBLANK) {
+        return GB_RESULT_OK;
     }
 
-    /* A HBlank transfer may be blocked while the CPU is halted, but it must
-     * resume later in the same HBlank once the CPU wakes. Therefore we track
-     * whether this HBlank's 16-byte block has actually been transferred
-     * instead of treating the HBlank transition itself as the only chance. */
-    if (mode == GB_PPU_MODE_HBLANK && ly < GB_PPU_VISIBLE_SCANLINES &&
-        !cgb->hblank_hdma_block_done) {
+    if (mode == GB_PPU_MODE_HBLANK && ly < GB_PPU_VISIBLE_SCANLINES) {
         if (cgb->cpu == NULL || !gb_cpu_is_halted(cgb->cpu)) {
-            GB_Result result = copy_hdma_block(cgb, error);
-            if (result != GB_RESULT_OK) return result;
-            cgb->hblank_hdma_block_done = true;
+            return copy_hdma_block(cgb, error);
         }
     }
 
@@ -395,8 +394,6 @@ GB_Result gb_cgb_reset(GB_CGB *cgb, GB_Error *error)
     cgb->hdma_vram_bank = 0u;
     cgb->hdma_blocks_remaining = 0u;
     cgb->cpu_stall_t_cycles = 0u;
-    cgb->speed_switch_pause_t_cycles = 0u;
-    cgb->hblank_hdma_block_done = false;
     cgb->previous_ppu_mode = GB_PPU_MODE_HBLANK;
     cgb->previous_ppu_mode_valid = false;
     cgb->rp_control = 0u;
@@ -538,7 +535,8 @@ GB_Result gb_cgb_handle_cpu_stop(GB_CGB *cgb, bool *speed_switched,
     if (result != GB_RESULT_OK) return result;
 
     cgb->speed_switch_prepared = false;
-    cgb->speed_switch_pause_t_cycles = 8200u;
+    result = gb_cpu_wake_from_stop(cgb->cpu, error);
+    if (result != GB_RESULT_OK) return result;
     if (speed_switched != NULL) *speed_switched = true;
     return GB_RESULT_OK;
 }
@@ -592,11 +590,6 @@ uint32_t gb_cgb_cpu_stall_t_cycles(const GB_CGB *cgb)
 bool gb_cgb_cpu_is_stalled(const GB_CGB *cgb)
 {
     return cgb != NULL && cgb->initialized && cgb->cpu_stall_t_cycles != 0u;
-}
-
-bool gb_cgb_speed_switch_paused(const GB_CGB *cgb)
-{
-    return cgb != NULL && cgb->initialized && cgb->speed_switch_pause_t_cycles != 0u;
 }
 
 GB_Result gb_cgb_set_ir_input(GB_CGB *cgb, bool active, GB_Error *error)

@@ -35,23 +35,13 @@ static GB_Result require_audio(const GB_Audio *audio, GB_Error *error)
     return GB_RESULT_OK;
 }
 
-static float calculate_hpf_charge_factor(const GB_Audio *audio)
-{
-    double per_master_clock = audio->cgb_mode ? 0.998943 : 0.999958;
-    double output_rate = audio->sample_rate_hz != 0u
-        ? (double)audio->sample_rate_hz
-        : (double)GB_AUDIO_SAMPLE_RATE_HZ;
-    double clocks_per_sample = (double)GB_AUDIO_MASTER_CLOCK_HZ / output_rate;
-    return (float)pow(per_master_clock, clocks_per_sample);
-}
-
 static uint8_t pulse_output(const GB_AudioPulse *channel)
 {
     static const uint8_t duty_table[4][8] = {
         {0u,0u,0u,0u,0u,0u,0u,1u},
-        {1u,0u,0u,0u,0u,0u,0u,1u},
-        {1u,0u,0u,0u,0u,1u,1u,1u},
-        {0u,1u,1u,1u,1u,1u,1u,0u}
+        {0u,0u,0u,0u,0u,0u,0u,1u},
+        {0u,0u,0u,0u,1u,1u,1u,1u},
+        {1u,1u,1u,1u,0u,0u,0u,0u}
     };
     if (!channel->dac_enabled) return 0u;
     return duty_table[channel->duty & 3u][channel->duty_step & 7u] != 0u
@@ -67,7 +57,10 @@ static uint8_t noise_output(const GB_AudioNoise *channel)
 static uint8_t wave_output(const GB_Audio *audio)
 {
     if (!audio->ch3.active || !audio->ch3.dac_enabled) return 0u;
-    uint8_t sample = audio->ch3.sample_buffer;
+    uint8_t sample = audio->wave_ram[audio->ch3.position >> 1u];
+    sample = (audio->ch3.position & 1u) == 0u
+        ? (uint8_t)(sample >> 4u)
+        : (uint8_t)(sample & 0x0Fu);
     switch (audio->ch3.output_level & 3u) {
     case 0u: return 0u;
     case 1u: return sample;
@@ -90,9 +83,11 @@ static uint16_t wave_period(uint16_t frequency)
 
 static uint16_t noise_period(uint8_t divisor_code, uint8_t shift)
 {
-    static const uint8_t base_periods[8] = {8u,16u,32u,48u,64u,80u,96u,112u};
-    if ((shift & 0x0Fu) >= 14u) return 0u;
-    return (uint16_t)((uint32_t)base_periods[divisor_code & 7u] << (shift & 0x0Fu));
+    static const uint8_t divisors[8] = {8u,16u,32u,48u,64u,80u,96u,112u};
+    uint32_t period = (uint32_t)divisors[divisor_code & 7u] << (shift & 0x0Fu);
+    period *= 2u;
+    if (period > UINT16_MAX) period = UINT16_MAX;
+    return (uint16_t)period;
 }
 
 static bool dac_enabled_pulse(uint8_t nrx2)
@@ -187,7 +182,7 @@ static void trigger_pulse(GB_Audio *audio, GB_AudioPulse *channel, bool first)
     channel->envelope_timer = channel->envelope_period == 0u ? 8u : channel->envelope_period;
     channel->timer = pulse_period(channel->frequency);
     if (channel->timer == 0u) channel->timer = 4u;
-    /* Pulse duty phase is not reset by a trigger. It is reset only when the APU is powered on. */
+    channel->duty_step = 0u;
 
     if (first) {
         uint8_t period = (uint8_t)((audio->nr10 >> 4u) & 7u);
@@ -219,8 +214,7 @@ static void trigger_wave(GB_Audio *audio)
     audio->ch3.active = true;
     audio->ch3.timer = wave_period(audio->ch3.frequency);
     if (audio->ch3.timer == 0u) audio->ch3.timer = 2u;
-    audio->ch3.position = 0u;
-    /* Trigger resets the position, but does not refill the sample buffer. */
+    audio->ch3.position = 1u;
 }
 
 static void trigger_noise(GB_Audio *audio)
@@ -378,26 +372,18 @@ static void tick_channels_one_cycle(GB_Audio *audio)
             audio->ch3.timer = wave_period(audio->ch3.frequency);
             if (audio->ch3.timer == 0u) audio->ch3.timer = 2u;
             audio->ch3.position = (uint8_t)((audio->ch3.position + 1u) & 31u);
-            {
-                uint8_t wave_byte = audio->wave_ram[audio->ch3.position >> 1u];
-                audio->ch3.sample_buffer = (audio->ch3.position & 1u) == 0u
-                    ? (uint8_t)(wave_byte >> 4u)
-                    : (uint8_t)(wave_byte & 0x0Fu);
-            }
         }
     }
     if (audio->ch4.active) {
         if (audio->ch4.timer > 0u) audio->ch4.timer--;
         if (audio->ch4.timer == 0u) {
             audio->ch4.timer = noise_period(audio->ch4.divisor_code, audio->ch4.clock_shift);
-            if (audio->ch4.timer != 0u) {
-                uint16_t bit = (uint16_t)((audio->ch4.lfsr ^ (audio->ch4.lfsr >> 1u)) & 1u);
-                audio->ch4.lfsr = (uint16_t)((audio->ch4.lfsr >> 1u) | (bit << 14u));
-                if (audio->ch4.width_mode) {
-                    uint16_t width_clear = (uint16_t)~(uint16_t)(1u << 6u);
-                    uint16_t width_set = (uint16_t)(bit << 6u);
-                    audio->ch4.lfsr = (uint16_t)((audio->ch4.lfsr & width_clear) | width_set);
-                }
+            uint16_t bit = (uint16_t)((audio->ch4.lfsr ^ (audio->ch4.lfsr >> 1u)) & 1u);
+            audio->ch4.lfsr = (uint16_t)((audio->ch4.lfsr >> 1u) | (bit << 14u));
+            if (audio->ch4.width_mode) {
+                uint16_t width_clear = (uint16_t)~(uint16_t)(1u << 6u);
+                uint16_t width_set = (uint16_t)(bit << 6u);
+                audio->ch4.lfsr = (uint16_t)((audio->ch4.lfsr & width_clear) | width_set);
             }
         }
     }
@@ -405,7 +391,7 @@ static void tick_channels_one_cycle(GB_Audio *audio)
 
 static float digital_to_analog(uint8_t value)
 {
-    return 1.0f - ((float)value / 7.5f);
+    return ((float)value / 7.5f) - 1.0f;
 }
 
 static void render_sample(GB_Audio *audio)
@@ -433,19 +419,13 @@ static void render_sample(GB_Audio *audio)
 
     /* A simple stable HPF models the analog DC-blocking stage and prevents
      * long-lived register changes from leaving a DC offset in the stream. */
-    bool any_dac_enabled = audio->ch1.dac_enabled || audio->ch2.dac_enabled ||
-                           audio->ch3.dac_enabled || audio->ch4.dac_enabled;
-    float filtered_left = 0.0f;
-    float filtered_right = 0.0f;
-    if (any_dac_enabled) {
-        const float hpf = audio->hpf_charge_factor;
-        filtered_left = left - audio->hp_left_input + hpf * audio->hp_left_output;
-        filtered_right = right - audio->hp_right_input + hpf * audio->hp_right_output;
-        audio->hp_left_input = left;
-        audio->hp_left_output = filtered_left;
-        audio->hp_right_input = right;
-        audio->hp_right_output = filtered_right;
-    }
+    const float hpf = 0.9995f;
+    float filtered_left = left - audio->hp_left_input + hpf * audio->hp_left_output;
+    float filtered_right = right - audio->hp_right_input + hpf * audio->hp_right_output;
+    audio->hp_left_input = left;
+    audio->hp_left_output = filtered_left;
+    audio->hp_right_input = right;
+    audio->hp_right_output = filtered_right;
 
     if (audio->ring_count == GB_AUDIO_RING_FRAMES) {
         audio->ring_read = (audio->ring_read + 1u) % GB_AUDIO_RING_FRAMES;
@@ -478,21 +458,15 @@ GB_Result gb_audio_reset(GB_Audio *audio, GB_Error *error)
     size_t saved_io = audio->io_device_index;
     size_t saved_wave = audio->wave_device_index;
     size_t saved_pcm = audio->pcm_device_index;
-    uint32_t saved_sample_rate = audio->sample_rate_hz;
-    void *saved_timer = audio->timer;
     memset(audio, 0, sizeof(*audio));
     audio->cgb_mode = saved_cgb;
     audio->memory = saved_memory;
     audio->io_device_index = saved_io;
     audio->wave_device_index = saved_wave;
     audio->pcm_device_index = saved_pcm;
-    audio->sample_rate_hz = saved_sample_rate != 0u ? saved_sample_rate : GB_AUDIO_SAMPLE_RATE_HZ;
-    audio->timer = saved_timer;
     audio->initialized = true;
     audio->powered_on = false;
     audio->ch4.lfsr = 0x7FFFu;
-    audio->ch3.sample_buffer = 0u;
-    audio->hpf_charge_factor = calculate_hpf_charge_factor(audio);
     memset(audio->wave_ram, 0, sizeof(audio->wave_ram));
     return GB_RESULT_OK;
 }
@@ -510,8 +484,6 @@ GB_Result gb_audio_init(GB_Audio *audio, GB_Memory *memory, GB_Error *error)
     audio->initialized = true;
     audio->memory = memory;
     audio->cgb_mode = memory->mode == GB_MEMORY_MODE_CGB;
-    audio->sample_rate_hz = GB_AUDIO_SAMPLE_RATE_HZ;
-    audio->hpf_charge_factor = calculate_hpf_charge_factor(audio);
     audio->ch4.lfsr = 0x7FFFu;
 
     GB_Result result = gb_memory_map_io_device(memory,
@@ -649,30 +621,13 @@ GB_Result gb_audio_tick(GB_Audio *audio, uint32_t t_cycles, GB_Error *error)
 
     for (uint32_t i = 0u; i < t_cycles; ++i) {
         tick_channels_one_cycle(audio);
-        audio->sample_accumulator += audio->sample_rate_hz;
+        audio->sample_accumulator += GB_AUDIO_SAMPLE_RATE_HZ;
         if (audio->timer == NULL) fallback_frame_clock(audio, 1u);
-        while (audio->sample_accumulator >= GB_AUDIO_MASTER_CLOCK_HZ) {
+        if (audio->sample_accumulator >= GB_AUDIO_MASTER_CLOCK_HZ) {
             audio->sample_accumulator -= GB_AUDIO_MASTER_CLOCK_HZ;
             render_sample(audio);
         }
     }
-    return GB_RESULT_OK;
-}
-
-GB_Result gb_audio_set_sample_rate(GB_Audio *audio, uint32_t sample_rate_hz,
-                                  GB_Error *error)
-{
-    gb_error_clear(error);
-    GB_Result result = require_audio(audio, error);
-    if (result != GB_RESULT_OK) return result;
-    if (sample_rate_hz < 8000u || sample_rate_hz > 192000u) {
-        audio_error(error, GB_RESULT_INVALID_ARGUMENT, 0u,
-                    "Audio sample rate must be between 8000 and 192000 Hz");
-        return GB_RESULT_INVALID_ARGUMENT;
-    }
-    audio->sample_rate_hz = sample_rate_hz;
-    audio->hpf_charge_factor = calculate_hpf_charge_factor(audio);
-    audio->sample_accumulator = 0u;
     return GB_RESULT_OK;
 }
 

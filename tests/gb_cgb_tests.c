@@ -53,11 +53,10 @@ static int test_key1_and_speed_switch(void)
     bool switched = false;
     CHECK_RESULT(gb_cgb_handle_cpu_stop(&cgb, &switched, &error),
                  "process STOP speed switch");
-    CHECK(switched, "STOP starts the speed switch");
+    CHECK(switched, "STOP toggles speed when KEY1 is prepared");
     CHECK(gb_cgb_get_speed(&cgb) == GB_CGB_SPEED_DOUBLE,
-          "CGB enters double-speed mode immediately after STOP");
-    CHECK(gb_cpu_is_stopped(&cpu), "CPU remains stopped during the speed-switch pause");
-    CHECK(gb_cgb_speed_switch_paused(&cgb), "CGB exposes the speed-switch pause");
+          "CGB enters double-speed mode");
+    CHECK(!gb_cpu_is_stopped(&cpu), "CPU resumes after speed switch");
     CHECK(!gb_cgb_speed_switch_prepared(&cgb), "KEY1 prepare bit clears after switch");
 
     CHECK_RESULT(gb_memory_read8(&memory, GB_CGB_ADDR_KEY1, &value, &error),
@@ -181,28 +180,13 @@ static int test_hblank_hdma(void)
     /* Enable LCD and advance through OAM + transfer to reach HBlank. */
     CHECK_RESULT(gb_memory_write8(&memory, 0xFF40u, 0x91u, &error),
                  "enable LCD");
-    uint8_t hdma5 = 0xFFu;
-    CHECK_RESULT(gb_memory_read8(&memory, GB_CGB_ADDR_HDMA5, &hdma5, &error),
-                 "read active HBlank HDMA status");
-    CHECK((hdma5 & 0x80u) == 0u, "HDMA5 bit 7 is clear while HBlank DMA is active");
-
-    GB_CPU cpu;
-    memset(&cpu, 0, sizeof(cpu));
-    CHECK_RESULT(gb_cgb_attach_cpu(&cgb, &cpu, &error),
-                 "attach CPU for HBlank DMA halt behavior");
-    cpu.halted = true;
     CHECK_RESULT(gb_ppu_tick(&ppu, 80u + 172u, &error),
                  "advance PPU into HBlank");
     CHECK(gb_ppu_get_mode(&ppu) == GB_PPU_MODE_HBLANK,
           "PPU reaches HBlank");
-    CHECK_RESULT(gb_cgb_tick(&cgb, 0u, &error),
-                 "observe HBlank DMA while CPU is stopped");
-    CHECK(memory.vram[0][0x20u] != 0x20u,
-          "HBlank DMA waits while CPU is stopped");
 
-    cpu.halted = false;
     CHECK_RESULT(gb_cgb_tick(&cgb, 0u, &error),
-                 "resume HBlank DMA after CPU wake");
+                 "process HBlank DMA at HBlank entry");
     for (uint16_t i = 0u; i < 0x10u; ++i) {
         CHECK(memory.vram[0][0x20u + i] == (uint8_t)(0x20u + i),
               "HBlank DMA copied one block into VRAM");

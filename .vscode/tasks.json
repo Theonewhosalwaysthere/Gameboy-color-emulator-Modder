@@ -271,6 +271,18 @@
             ]
         },
         {
+            "label": "Final integration verification",
+            "type": "shell",
+            "command": "make verify",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
             "label": "Clean build",
             "type": "shell",
             "command": "make clean",

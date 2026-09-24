@@ -1,5 +1,5 @@
-# GCC/Clang-compatible Makefile. The default emulator is headless and does not
-# require SDL3. Build the SDL3 frontend explicitly with: make sdl3
+# Default target is a headless, SDL3-free emulator. Build the graphical SDL3
+# frontend explicitly with: make sdl3
 
 UNAME_S := $(shell uname -s 2>/dev/null)
 
@@ -14,8 +14,8 @@ ifeq ($(IS_WINDOWS),1)
   ifeq ($(origin CC),default)
     CC := gcc
   endif
-  MKDIR_P = if not exist "$(subst /,\,$1)" mkdir "$(subst /,\,$1)"
-  RMDIR_RF = if exist "$(subst /,\,$1)" rmdir /S /Q "$(subst /,\,$1)"
+  MKDIR_P = if not exist "$(subst /,\\,$1)" mkdir "$(subst /,\\,$1)"
+  RMDIR_RF = if exist "$(subst /,\\,$1)" rmdir /S /Q "$(subst /,\\,$1)"
 else
   EXE_EXT :=
   ifeq ($(origin CC),default)
@@ -60,7 +60,7 @@ endif
 
 define CHECK_SDL3
 $(if $(strip $(SDL3_CFLAGS)),,$(error SDL3 development files not found. Install SDL3, set SDL3_DIR, or set SDL3_CFLAGS/SDL3_LIBS manually))
-$(if $(strip $(SDL3_LIBS)),,$(error SDL3 library flags not found. Install SDL3, set SDL3_DIR, or set SDL3_CFLAGS/SDL3_LIBS manually))
+$(if $(strip $(SDL3_LIBS)),,$(error SDL3 development libraries not found. Install SDL3, set SDL3_DIR, or set SDL3_CFLAGS/SDL3_LIBS manually))
 endef
 
 CORE_SRC := \
@@ -107,88 +107,44 @@ LIB := $(LIB_DIR)/libgbc_core.a
 EMULATOR_BIN := $(BIN_DIR)/gbc_emulator$(EXE_EXT)
 SDL3_EMULATOR_BIN := $(BIN_DIR)/gbc_emulator_sdl3$(EXE_EXT)
 
-CPU_TEST_BIN := $(BIN_DIR)/gb_cpu_tests$(EXE_EXT)
-MEMORY_TEST_BIN := $(BIN_DIR)/gb_memory_tests$(EXE_EXT)
-CARTRIDGE_TEST_BIN := $(BIN_DIR)/gb_cartridge_tests$(EXE_EXT)
-TIMER_TEST_BIN := $(BIN_DIR)/gb_timer_tests$(EXE_EXT)
-INTERRUPT_TEST_BIN := $(BIN_DIR)/gb_interrupt_tests$(EXE_EXT)
-PPU_TEST_BIN := $(BIN_DIR)/gb_ppu_tests$(EXE_EXT)
-INPUT_TEST_BIN := $(BIN_DIR)/gb_input_tests$(EXE_EXT)
-DMA_TEST_BIN := $(BIN_DIR)/gb_dma_tests$(EXE_EXT)
-CGB_TEST_BIN := $(BIN_DIR)/gb_cgb_tests$(EXE_EXT)
-AUDIO_TEST_BIN := $(BIN_DIR)/gb_audio_tests$(EXE_EXT)
-SAVE_TEST_BIN := $(BIN_DIR)/gb_save_tests$(EXE_EXT)
-DEBUG_TEST_BIN := $(BIN_DIR)/gb_debug_tests$(EXE_EXT)
-EMULATOR_TEST_BIN := $(BIN_DIR)/gb_emulator_tests$(EXE_EXT)
-
 TEST_BINS := \
-	$(CPU_TEST_BIN) \
-	$(MEMORY_TEST_BIN) \
-	$(CARTRIDGE_TEST_BIN) \
-	$(TIMER_TEST_BIN) \
-	$(INTERRUPT_TEST_BIN) \
-	$(PPU_TEST_BIN) \
-	$(INPUT_TEST_BIN) \
-	$(DMA_TEST_BIN) \
-	$(CGB_TEST_BIN) \
-	$(AUDIO_TEST_BIN) \
-	$(SAVE_TEST_BIN) \
-	$(DEBUG_TEST_BIN) \
-	$(EMULATOR_TEST_BIN)
+	$(BIN_DIR)/gb_cpu_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_memory_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_cartridge_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_timer_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_interrupt_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_ppu_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_input_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_dma_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_cgb_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_audio_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_save_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_debug_tests$(EXE_EXT) \
+	$(BIN_DIR)/gb_emulator_tests$(EXE_EXT)
 
-.PHONY: all core tests test verify emulator run sdl3 run-sdl3 \
+.PHONY: all core tests test verify emulator sdl3 run run-sdl3 \
 	test-cpu test-memory test-cartridge test-mbc test-timer test-interrupt \
 	test-ppu test-input test-dma test-cgb test-audio test-save test-debug test-emulator \
 	sdl3-input sdl3-audio clean rebuild sanitize help
 
-# Default build: no SDL3 required.
+# Default: no SDL3 required. The headless emulator is intentionally uncapped.
 all: $(EMULATOR_BIN) tests
 
 core: $(LIB)
-
 tests: $(TEST_BINS)
-
 test: tests
-	$(CPU_TEST_BIN)
-	$(MEMORY_TEST_BIN)
-	$(CARTRIDGE_TEST_BIN)
-	$(TIMER_TEST_BIN)
-	$(INTERRUPT_TEST_BIN)
-	$(PPU_TEST_BIN)
-	$(INPUT_TEST_BIN)
-	$(DMA_TEST_BIN)
-	$(CGB_TEST_BIN)
-	$(AUDIO_TEST_BIN)
-	$(SAVE_TEST_BIN)
-	$(DEBUG_TEST_BIN)
-	$(EMULATOR_TEST_BIN)
-
-verify:
-	$(MAKE) test
-	$(MAKE) sanitize
+	$(TEST_BINS)
 
 emulator: $(EMULATOR_BIN)
-
 sdl3: $(SDL3_EMULATOR_BIN)
 
 run: $(EMULATOR_BIN)
-ifeq ($(IS_WINDOWS),1)
-	@if "$(ROM)"=="" (echo Usage: make run ROM=path/to/game.gb ^[MODE=--cgb^|--dmg^] & exit /b 2)
-else
-	@if [ -z "$(ROM)" ]; then echo "Usage: make run ROM=path/to/game.gb [MODE=--cgb|--dmg]"; exit 2; fi
-endif
-	$(EMULATOR_BIN) $(MODE) "$(ROM)"
+	@$(if $(ROM),,$(error Usage: make run ROM=path/to/game.gb [MODE=--cgb|--dmg] [ARGS=--realtime]))
+	$(EMULATOR_BIN) $(MODE) $(ARGS) "$(ROM)"
 
 run-sdl3: $(SDL3_EMULATOR_BIN)
-ifeq ($(IS_WINDOWS),1)
-	@if "$(ROM)"=="" (echo Usage: make run-sdl3 ROM=path/to/game.gb ^[MODE=--cgb^|--dmg^] & exit /b 2)
-else
-	@if [ -z "$(ROM)" ]; then echo "Usage: make run-sdl3 ROM=path/to/game.gb [MODE=--cgb|--dmg]"; exit 2; fi
-endif
+	@$(if $(ROM),,$(error Usage: make run-sdl3 ROM=path/to/game.gb [MODE=--cgb|--dmg]))
 	$(SDL3_EMULATOR_BIN) $(MODE) "$(ROM)"
-
-sdl3-input: $(SDL3_INPUT_OBJ)
-sdl3-audio: $(SDL3_AUDIO_OBJ)
 
 $(LIB): $(CORE_OBJ) | $(LIB_DIR)
 	$(AR) rcs $@ $^
@@ -200,31 +156,32 @@ $(SDL3_EMULATOR_BIN): $(SDL3_MAIN_OBJ) $(PLATFORM_OBJ) $(LIB) $(SDL3_INPUT_OBJ) 
 	@$(CHECK_SDL3)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(SDL3_MAIN_OBJ) $(PLATFORM_OBJ) $(SDL3_INPUT_OBJ) $(SDL3_AUDIO_OBJ) $(LIB) $(SDL3_LIBS) $(LDLIBS)
 
-$(CPU_TEST_BIN): $(OBJ_DIR)/tests/gb_cpu_tests.o $(LIB) | $(BIN_DIR)
+# Every test binary uses the same core library and therefore remains SDL-free.
+$(BIN_DIR)/gb_cpu_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_cpu_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(MEMORY_TEST_BIN): $(OBJ_DIR)/tests/gb_memory_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_memory_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_memory_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(CARTRIDGE_TEST_BIN): $(OBJ_DIR)/tests/gb_cartridge_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_cartridge_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_cartridge_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(TIMER_TEST_BIN): $(OBJ_DIR)/tests/gb_timer_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_timer_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_timer_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(INTERRUPT_TEST_BIN): $(OBJ_DIR)/tests/gb_interrupt_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_interrupt_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_interrupt_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(PPU_TEST_BIN): $(OBJ_DIR)/tests/gb_ppu_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_ppu_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_ppu_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(INPUT_TEST_BIN): $(OBJ_DIR)/tests/gb_input_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_input_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_input_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(DMA_TEST_BIN): $(OBJ_DIR)/tests/gb_dma_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_dma_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_dma_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(CGB_TEST_BIN): $(OBJ_DIR)/tests/gb_cgb_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_cgb_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_cgb_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(AUDIO_TEST_BIN): $(OBJ_DIR)/tests/gb_audio_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_audio_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_audio_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(SAVE_TEST_BIN): $(OBJ_DIR)/tests/gb_save_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_save_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_save_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(DEBUG_TEST_BIN): $(OBJ_DIR)/tests/gb_debug_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_debug_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_debug_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
-$(EMULATOR_TEST_BIN): $(OBJ_DIR)/tests/gb_emulator_tests.o $(LIB) | $(BIN_DIR)
+$(BIN_DIR)/gb_emulator_tests$(EXE_EXT): $(OBJ_DIR)/tests/gb_emulator_tests.o $(LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIB) $(LDLIBS)
 
 $(OBJ_DIR)/%.o: src/%.c
@@ -235,7 +192,7 @@ $(OBJ_DIR)/tests/%.o: tests/%.c
 	$(call MKDIR_P,$(@D))
 	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
-$(PLATFORM_OBJ): $(PLATFORM_SRC)
+$(PLATFORM_OBJ): src/platform/gb_sdl3.c
 	@$(CHECK_SDL3)
 	$(call MKDIR_P,$(@D))
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(SDL3_CFLAGS) -MMD -MP -c $< -o $@
@@ -262,6 +219,10 @@ sanitize:
 	$(MAKE) BUILD_DIR=build-sanitize clean
 	$(MAKE) BUILD_DIR=build-sanitize CFLAGS="$(CSTD) $(WARNINGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer" LDFLAGS="-fsanitize=address,undefined" test
 
+verify:
+	$(MAKE) test
+	$(MAKE) sanitize
+
 rebuild:
 	$(MAKE) clean
 	$(MAKE) all
@@ -270,15 +231,14 @@ clean:
 	$(call RMDIR_RF,$(BUILD_DIR))
 
 help:
-	@echo "GBC emulator build targets:"
-	@echo "  make              Build headless emulator + tests (no SDL3)"
-	@echo "  make run ROM=...  Run a ROM headlessly (ROM required)"
-	@echo "  make sdl3         Build the SDL3 graphical emulator"
-	@echo "  make run-sdl3 ROM=...  Run a ROM with SDL3"
-	@echo "  make test         Run all core/integration tests"
-	@echo "  make verify       Run tests + ASan/UBSan"
-	@echo "  make sanitize     Run ASan/UBSan tests"
-	@echo "  make clean        Remove the default build"
-	@echo "SDL3: set SDL3_DIR or SDL3_CFLAGS/SDL3_LIBS when building sdl3"
+	@echo "GBC emulator targets:"
+	@echo "  make                Build headless emulator + tests (no SDL3)"
+	@echo "  make run ROM=...    Run headless, uncapped by default"
+	@echo "  make run ROM=... ARGS=--realtime  Optional real-time flag"
+	@echo "  make sdl3           Build SDL3 graphical frontend"
+	@echo "  make run-sdl3 ROM=...  Run SDL3 frontend"
+	@echo "  make test           Run all core tests"
+	@echo "  make verify         Tests + ASan/UBSan"
+	@echo "SDL3 is only required by the sdl3 targets."
 
 -include $(CORE_OBJ:.o=.d) $(TEST_OBJ:.o=.d) $(SDL3_MAIN_OBJ:.o=.d) $(PLATFORM_OBJ:.o=.d) $(MAIN_OBJ:.o=.d) $(SDL3_INPUT_OBJ:.o=.d) $(SDL3_AUDIO_OBJ:.o=.d)

@@ -664,30 +664,6 @@ GB_Result gb_emulator_step(GB_Emulator *emulator,
         return GB_RESULT_BAD_STATE;
     }
 
-    if (emulator->cgb_initialized && gb_cgb_speed_switch_paused(&emulator->cgb)) {
-        /* During the CGB STOP speed-switch pause, the CPU is stopped and the
-         * divider/timer/APU clocks are frozen. The LCD still advances, as does
-         * HBlank DMA. Tick only those domains rather than the whole memory
-         * device fabric. */
-        result = gb_ppu_tick(&emulator->ppu, 4u, error);
-        if (result != GB_RESULT_OK) return result;
-        result = gb_cgb_tick(&emulator->cgb, 4u, error);
-        if (result != GB_RESULT_OK) return result;
-        if (emulator->cgb.speed_switch_pause_t_cycles >= 4u) {
-            emulator->cgb.speed_switch_pause_t_cycles -= 4u;
-        } else {
-            emulator->cgb.speed_switch_pause_t_cycles = 0u;
-        }
-        if (emulator->cgb.speed_switch_pause_t_cycles == 0u) {
-            result = gb_cpu_wake_from_stop(&emulator->cpu, error);
-            if (result != GB_RESULT_OK) return result;
-        }
-        if (t_cycles != NULL) {
-            *t_cycles = hardware_cycles_to_cpu_cycles(emulator, 4u);
-        }
-        return GB_RESULT_OK;
-    }
-
     if (emulator->cgb_initialized && gb_cgb_cpu_is_stalled(&emulator->cgb)) {
         result = gb_emulator_tick_hardware(emulator, 4u, error);
         if (result != GB_RESULT_OK) return result;
