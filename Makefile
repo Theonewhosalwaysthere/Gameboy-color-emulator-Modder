@@ -80,7 +80,8 @@ CORE_SRC := \
 	src/audio/gb_audio.c \
 	src/save/gb_save.c \
 	src/debug/gb_debug.c \
-	src/emulator/gb_emulator.c
+	src/emulator/gb_emulator.c \ 
+
 
 TEST_SRC := \
 	tests/gb_cpu_tests.c \

@@ -1,0 +1,8 @@
+{
+  "name": "Test",
+  "author": "Example",
+  "version": "1.0.0",
+  "game": "Example Game",
+  "multiplayer": true,
+  "sync_bytes": 512
+}
