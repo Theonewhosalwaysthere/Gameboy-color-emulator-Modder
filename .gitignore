@@ -1,6 +1,3 @@
-build/**
-build/bin/
-build/lib/
-build/obj/
+build/
 roms/*
 !roms/test/
