@@ -8,11 +8,6 @@ This final integrated stage contains the CPU, memory/bus, cartridge loading, tim
 
 ```text
 gbc_emulator/
-├── .vscode/
-│   ├── c_cpp_properties.json
-│   ├── launch.json
-│   ├── settings.json
-│   └── tasks.json
 ├── src/
 │   ├── cpu/
 │   ├── memory/

@@ -3,8 +3,7 @@
 
 #include "emulator/gb_emulator.h"
 
-static void print_error(const char *context, const GB_Error *error)
-{
+static void print_error(const char *context, const GB_Error *error) {
     if (error != NULL && error->message[0] != '\0') {
         if (error->has_opcode) {
             fprintf(stderr, "%s: %s (PC=$%04X opcode=$%02X)\n",
@@ -27,8 +26,8 @@ static void print_usage(const char *program)
             program);
 }
 
-int main(int argc, char **argv)
-{
+
+int emulator_main(int argc, char **argv) {
     GB_EmulatorConfig config;
     GB_Emulator emulator;
     GB_Error error;
@@ -102,4 +101,9 @@ int main(int argc, char **argv)
     }
 
     return 0;
+}
+
+int main(int argc, char **argv) {
+
+    return emulator_main(argc, argv);
 }

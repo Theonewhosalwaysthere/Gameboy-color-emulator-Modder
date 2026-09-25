@@ -30,7 +30,7 @@ AR ?= ar
 CSTD := -std=c11
 WARNINGS := -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion
 CPPFLAGS := -Isrc/cpu -Isrc/memory -Isrc/cartridge -Isrc/timer -Isrc/interrupt -Isrc/ppu -Isrc/input -Isrc/dma -Isrc/cgb -Isrc/audio -Isrc/emulator -Isrc/platform -Isrc/save -Isrc/debug
-CFLAGS ?= $(CSTD) $(WARNINGS) -O2 -g
+CFLAGS ?= $(CSTD) $(WARNINGS) -O2 -mwindows -g
 LDFLAGS ?=
 ifeq ($(IS_WINDOWS),1)
   MATH_LIB :=
